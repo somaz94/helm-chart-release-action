@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.0.1](https://github.com/somaz94/helm-chart-release-action/compare/v1.0.0...v1.0.1) (2026-04-21)
+
+### Code Refactoring
+
+- drop helm_version pin, use azure/setup-helm latest by default ([0411642](https://github.com/somaz94/helm-chart-release-action/commit/04116427867103e9091e85a3437a3fab6225465a))
+
+### Contributors
+
+- somaz
+
+<br/>
+
 ## [v1.0.0](https://github.com/somaz94/helm-chart-release-action/releases/tag/v1.0.0) (2026-04-21)
 
 ### Features
