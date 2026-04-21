@@ -17,7 +17,7 @@ A composite GitHub Action that packages Helm charts, publishes them to a `gh-pag
 - Independent **toggles**: `enable_gh_pages`, `enable_oci_push`
 - **`dry_run`** for PR validation (no gh-pages commit, no OCI push)
 - Automatic `appVersion` bump from the release tag (single mode)
-- Ships with `azure/setup-helm@v5` (helm v3.16.4 by default, configurable)
+- Ships with `azure/setup-helm@v5` (latest stable helm by default, pin via `helm_version` if needed)
 
 <br/>
 
@@ -192,7 +192,7 @@ Pass a full OCI URL. If you've already authenticated via a provider-specific act
 | `registry_username` | OCI username | No | `${{ github.actor }}` |
 | `registry_password` | OCI token (typically `secrets.GITHUB_TOKEN` for GHCR) | No | `''` |
 | `skip_existing` | Forwarded to helm-oci-push-action: skip chart@version already in registry (idempotent) | No | `false` |
-| `helm_version` | Helm CLI version for `azure/setup-helm` | No | `v3.16.4` |
+| `helm_version` | Helm CLI version for `azure/setup-helm` (empty = latest stable) | No | `''` |
 | `dry_run` | Skip actual commit/push (both gh-pages and OCI) | No | `false` |
 | `oci_continue_on_error` | Forwarded to `helm-oci-push-action` | No | `true` |
 
@@ -230,7 +230,7 @@ And `actions/checkout` with `fetch-depth: 0` + a PAT token (so the action can pu
 
 ## How It Works
 
-1. **`azure/setup-helm`** installs Helm (`helm_version`, default v3.16.4).
+1. **`azure/setup-helm`** installs Helm (`helm_version` empty = latest stable; pin a specific version if reproducibility matters).
 2. **`update_appversion`** (single + flag): rewrites `Chart.yaml` `appVersion` from `GITHUB_REF_NAME`.
 3. **`update_dependencies`** (optional): runs `helm dependency update` on the chart(s).
 4. **`helm package`** produces `.tgz`(s) in `helm-repo/` (extra args via `helm_package_args`).

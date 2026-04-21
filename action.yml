@@ -79,9 +79,9 @@ inputs:
     required: false
     default: 'false'
   helm_version:
-    description: "helm CLI version installed by azure/setup-helm"
+    description: "helm CLI version installed by azure/setup-helm. Empty (default) uses azure/setup-helm's latest stable resolution."
     required: false
-    default: 'v3.16.4'
+    default: ''
   dry_run:
     description: "Skip the actual gh-pages commit/push and OCI push (validate only)"
     required: false
