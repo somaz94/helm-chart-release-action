@@ -192,7 +192,7 @@ Pass a full OCI URL. If you've already authenticated via a provider-specific act
 | `registry_username` | OCI username | No | `${{ github.actor }}` |
 | `registry_password` | OCI token (typically `secrets.GITHUB_TOKEN` for GHCR) | No | `''` |
 | `skip_existing` | Forwarded to helm-oci-push-action: skip chart@version already in registry (idempotent) | No | `false` |
-| `helm_version` | Helm CLI version for `azure/setup-helm` (empty = latest stable) | No | `''` |
+| `helm_version` | Helm CLI version for `azure/setup-helm` (`latest` or pin like `v3.16.4`) | No | `latest` |
 | `dry_run` | Skip actual commit/push (both gh-pages and OCI) | No | `false` |
 | `oci_continue_on_error` | Forwarded to `helm-oci-push-action` | No | `true` |
 
