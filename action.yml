@@ -1,26 +1,232 @@
-name: The name of your action here
-description: Provide a description here
-author: Your name or organization here
+name: Helm Chart Release
+description: Package and release Helm charts to gh-pages and an OCI registry in one composite action.
+author: somaz94
 
-# Add your action's branding here. This will appear on the GitHub Marketplace.
 branding:
-  icon: heart
-  color: red
+  icon: package
+  color: blue
 
-# Define your inputs here.
 inputs:
-  who-to-greet:
-    description: Your input description here
+  mode:
+    description: "Release mode: 'single' (one chart_path) or 'multi' (charts_dir scan)"
     required: true
-    default: World
+  chart_path:
+    description: "Path to the chart directory (mode=single)"
+    required: false
+    default: ''
+  charts_dir:
+    description: "Directory whose immediate subdirectories are charts (mode=multi)"
+    required: false
+    default: ''
+  update_appversion:
+    description: "Update Chart.yaml appVersion from GITHUB_REF_NAME (mode=single only)"
+    required: false
+    default: 'true'
+  enable_gh_pages:
+    description: "Publish charts to a gh-pages branch as a Helm repo"
+    required: false
+    default: 'true'
+  enable_oci_push:
+    description: "Push charts to the OCI registry (delegates to somaz94/helm-oci-push-action)"
+    required: false
+    default: 'true'
+  gh_pages_url:
+    description: "Base URL of the helm repo on gh-pages (e.g., https://owner.github.io/repo/helm-repo). Required when enable_gh_pages=true."
+    required: false
+    default: ''
+  gh_pages_branch:
+    description: "gh-pages branch name"
+    required: false
+    default: 'gh-pages'
+  commit_message:
+    description: "Commit message for the gh-pages update"
+    required: false
+    default: 'chore: update helm chart repository'
+  git_user_name:
+    description: "Git author name for the gh-pages commit"
+    required: false
+    default: 'GitHub Actions'
+  git_user_email:
+    description: "Git author email for the gh-pages commit"
+    required: false
+    default: 'actions@github.com'
+  registry:
+    description: "Target OCI registry URL"
+    required: false
+    default: 'oci://ghcr.io/${{ github.repository_owner }}/charts'
+  registry_login:
+    description: "Pass-through to helm-oci-push-action: log in to the registry inside the action. Set false when CI should skip login or when a previous step authenticated."
+    required: false
+    default: 'true'
+  registry_username:
+    description: "OCI registry username"
+    required: false
+    default: ${{ github.actor }}
+  registry_password:
+    description: "OCI registry password / token (typically secrets.GITHUB_TOKEN for GHCR)"
+    required: false
+    default: ''
+  helm_version:
+    description: "helm CLI version installed by azure/setup-helm"
+    required: false
+    default: 'v3.16.4'
+  dry_run:
+    description: "Skip the actual gh-pages commit/push and OCI push (validate only)"
+    required: false
+    default: 'false'
+  oci_continue_on_error:
+    description: "Pass-through to helm-oci-push-action: continue if a chart push fails"
+    required: false
+    default: 'true'
 
-# Define your outputs here.
 outputs:
-  greeting:
-    description: Your output description here
+  pushed_charts:
+    description: "Comma-separated name:version pairs pushed to OCI"
+    value: ${{ steps.oci.outputs.pushed_charts }}
+  skipped_charts:
+    description: "Comma-separated name:version pairs skipped (dry-run or already exists)"
+    value: ${{ steps.oci.outputs.skipped_charts }}
 
 runs:
-  using: docker
-  image: Dockerfile
-  env:
-    INPUT_WHO_TO_GREET: ${{ inputs.who-to-greet }}
+  using: composite
+  steps:
+    - name: Validate inputs
+      shell: bash
+      env:
+        MODE: ${{ inputs.mode }}
+        CHART_PATH: ${{ inputs.chart_path }}
+        CHARTS_DIR: ${{ inputs.charts_dir }}
+        ENABLE_GH_PAGES: ${{ inputs.enable_gh_pages }}
+        GH_PAGES_URL: ${{ inputs.gh_pages_url }}
+      run: |
+        case "$MODE" in
+          single|multi) ;;
+          *) echo "::error::mode must be 'single' or 'multi' (got '$MODE')"; exit 1 ;;
+        esac
+        if [[ "$MODE" == "single" && -z "$CHART_PATH" ]]; then
+          echo "::error::mode=single requires 'chart_path'"; exit 1
+        fi
+        if [[ "$MODE" == "multi" && -z "$CHARTS_DIR" ]]; then
+          echo "::error::mode=multi requires 'charts_dir'"; exit 1
+        fi
+        if [[ "$ENABLE_GH_PAGES" == "true" && -z "$GH_PAGES_URL" ]]; then
+          echo "::error::enable_gh_pages=true requires 'gh_pages_url'"; exit 1
+        fi
+
+    - name: Set up Helm
+      uses: azure/setup-helm@v5
+      with:
+        version: ${{ inputs.helm_version }}
+
+    - name: Update Chart appVersion (single mode)
+      if: inputs.mode == 'single' && inputs.update_appversion == 'true'
+      shell: bash
+      env:
+        CHART_PATH: ${{ inputs.chart_path }}
+      run: |
+        TAG="${GITHUB_REF_NAME:-$(git describe --tags --abbrev=0 2>/dev/null || echo '')}"
+        if [ -n "$TAG" ]; then
+          sed -i "s/^appVersion:.*/appVersion: \"${TAG}\"/" "$CHART_PATH/Chart.yaml"
+        fi
+
+    - name: Package chart (single mode)
+      if: inputs.mode == 'single'
+      shell: bash
+      env:
+        CHART_PATH: ${{ inputs.chart_path }}
+      run: |
+        mkdir -p helm-repo
+        helm package "$CHART_PATH" -d helm-repo/
+
+    - name: Package charts (multi mode)
+      if: inputs.mode == 'multi'
+      shell: bash
+      env:
+        CHARTS_DIR: ${{ inputs.charts_dir }}
+      run: |
+        mkdir -p helm-repo
+        for d in "$CHARTS_DIR"/*/; do
+          [[ -d "$d" && -f "$d/Chart.yaml" ]] || continue
+          echo "==> Packaging ${d%/}"
+          helm package "${d%/}" -d helm-repo/
+        done
+
+    - name: Stage tarballs to /tmp/helm-repo-staging
+      shell: bash
+      run: |
+        mkdir -p /tmp/helm-repo-staging
+        cp helm-repo/*.tgz /tmp/helm-repo-staging/
+
+    - name: Pre-merge gh-pages index
+      if: inputs.enable_gh_pages == 'true'
+      shell: bash
+      env:
+        GH_PAGES_BRANCH: ${{ inputs.gh_pages_branch }}
+        GH_PAGES_URL: ${{ inputs.gh_pages_url }}
+      run: |
+        git fetch origin "$GH_PAGES_BRANCH:$GH_PAGES_BRANCH" 2>/dev/null || true
+        if git rev-parse --verify "$GH_PAGES_BRANCH" >/dev/null 2>&1; then
+          git checkout "$GH_PAGES_BRANCH" -- helm-repo/index.yaml 2>/dev/null || true
+        fi
+        if [ -f helm-repo/index.yaml ]; then
+          helm repo index helm-repo/ --url "$GH_PAGES_URL" --merge helm-repo/index.yaml
+        else
+          helm repo index helm-repo/ --url "$GH_PAGES_URL"
+        fi
+        cp helm-repo/index.yaml /tmp/helm-repo-staging/
+
+    - name: Deploy to gh-pages
+      if: inputs.enable_gh_pages == 'true'
+      shell: bash
+      env:
+        MODE: ${{ inputs.mode }}
+        CHART_PATH: ${{ inputs.chart_path }}
+        GH_PAGES_BRANCH: ${{ inputs.gh_pages_branch }}
+        COMMIT_MESSAGE: ${{ inputs.commit_message }}
+        GIT_USER_NAME: ${{ inputs.git_user_name }}
+        GIT_USER_EMAIL: ${{ inputs.git_user_email }}
+        DRY_RUN: ${{ inputs.dry_run }}
+      run: |
+        git config user.name "$GIT_USER_NAME"
+        git config user.email "$GIT_USER_EMAIL"
+
+        # Discard the appVersion edit so the branch switch is clean.
+        if [[ "$MODE" == "single" ]]; then
+          git checkout -- "$CHART_PATH/Chart.yaml" 2>/dev/null || true
+        fi
+
+        rm -rf helm-repo
+
+        if git rev-parse --verify "$GH_PAGES_BRANCH" >/dev/null 2>&1; then
+          git checkout "$GH_PAGES_BRANCH"
+        else
+          git checkout --orphan "$GH_PAGES_BRANCH"
+          git rm -rf .
+        fi
+
+        rm -rf helm-repo
+        mkdir -p helm-repo
+        cp /tmp/helm-repo-staging/* helm-repo/
+
+        find . -maxdepth 1 ! -name '.' ! -name '.git' ! -name 'helm-repo' -exec rm -rf {} +
+        git add helm-repo/
+        if [[ "$DRY_RUN" == "true" ]]; then
+          git diff --cached --stat
+          echo "::notice::dry_run=true; skipping gh-pages commit and push"
+        else
+          git commit -m "$COMMIT_MESSAGE" || echo "No changes to commit"
+          git push origin "$GH_PAGES_BRANCH"
+        fi
+
+    - name: Push to OCI registry
+      if: inputs.enable_oci_push == 'true'
+      id: oci
+      uses: somaz94/helm-oci-push-action@v1
+      with:
+        tarballs: /tmp/helm-repo-staging/*.tgz
+        registry: ${{ inputs.registry }}
+        registry_login: ${{ inputs.registry_login }}
+        username: ${{ inputs.registry_username }}
+        password: ${{ inputs.registry_password }}
+        dry_run: ${{ inputs.dry_run }}
+        continue_on_error: ${{ inputs.oci_continue_on_error }}
