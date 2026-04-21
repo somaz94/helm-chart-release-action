@@ -111,6 +111,48 @@ jobs:
 
 <br/>
 
+### Idempotent release (skip charts already in the registry)
+
+```yaml
+- uses: somaz94/helm-chart-release-action@v1
+  with:
+    mode: multi
+    charts_dir: charts
+    gh_pages_url: https://somaz94.github.io/my-charts/helm-repo
+    skip_existing: true
+    registry_password: ${{ secrets.GITHUB_TOKEN }}
+```
+
+<br/>
+
+### Charts with subchart dependencies
+
+```yaml
+- uses: somaz94/helm-chart-release-action@v1
+  with:
+    mode: single
+    chart_path: ./helm/my-app
+    update_dependencies: true   # runs `helm dependency update` first
+    gh_pages_url: https://somaz94.github.io/my-app/helm-repo
+    registry_password: ${{ secrets.GITHUB_TOKEN }}
+```
+
+<br/>
+
+### Override version with `helm package` extra args
+
+```yaml
+- uses: somaz94/helm-chart-release-action@v1
+  with:
+    mode: single
+    chart_path: ./helm/my-app
+    helm_package_args: --version 1.2.3 --app-version 1.2.3
+    gh_pages_url: https://somaz94.github.io/my-app/helm-repo
+    registry_password: ${{ secrets.GITHUB_TOKEN }}
+```
+
+<br/>
+
 ### Push to a different registry (Harbor / ECR / GAR)
 
 Pass a full OCI URL. If you've already authenticated via a provider-specific action, set `registry_password` empty and toggle login off via the underlying action — or use `helm-oci-push-action` directly for more control.
@@ -136,6 +178,8 @@ Pass a full OCI URL. If you've already authenticated via a provider-specific act
 | `chart_path` | Chart directory (mode=single) | single | `''` |
 | `charts_dir` | Directory with chart subdirectories (mode=multi) | multi | `''` |
 | `update_appversion` | Bump Chart.yaml `appVersion` from `GITHUB_REF_NAME` | No | `true` |
+| `update_dependencies` | Run `helm dependency update` before packaging (for charts with subchart dependencies) | No | `false` |
+| `helm_package_args` | Extra CLI args forwarded to `helm package` (e.g., `--version 1.2.3 --app-version 1.2.3`) | No | `''` |
 | `enable_gh_pages` | Publish to gh-pages branch | No | `true` |
 | `enable_oci_push` | Push to OCI registry | No | `true` |
 | `gh_pages_url` | Helm repo base URL (required when `enable_gh_pages=true`) | conditional | `''` |
@@ -147,6 +191,7 @@ Pass a full OCI URL. If you've already authenticated via a provider-specific act
 | `registry_login` | Forwarded to helm-oci-push-action: log in inside the action | No | `true` |
 | `registry_username` | OCI username | No | `${{ github.actor }}` |
 | `registry_password` | OCI token (typically `secrets.GITHUB_TOKEN` for GHCR) | No | `''` |
+| `skip_existing` | Forwarded to helm-oci-push-action: skip chart@version already in registry (idempotent) | No | `false` |
 | `helm_version` | Helm CLI version for `azure/setup-helm` | No | `v3.16.4` |
 | `dry_run` | Skip actual commit/push (both gh-pages and OCI) | No | `false` |
 | `oci_continue_on_error` | Forwarded to `helm-oci-push-action` | No | `true` |

@@ -22,6 +22,14 @@ inputs:
     description: "Update Chart.yaml appVersion from GITHUB_REF_NAME (mode=single only)"
     required: false
     default: 'true'
+  update_dependencies:
+    description: "Run 'helm dependency update' on each chart before packaging (use when charts have subchart dependencies)"
+    required: false
+    default: 'false'
+  helm_package_args:
+    description: "Additional CLI arguments forwarded to 'helm package' (e.g., '--version 1.2.3 --app-version 1.2.3'). Escape hatch for advanced use cases."
+    required: false
+    default: ''
   enable_gh_pages:
     description: "Publish charts to a gh-pages branch as a Helm repo"
     required: false
@@ -66,6 +74,10 @@ inputs:
     description: "OCI registry password / token (typically secrets.GITHUB_TOKEN for GHCR)"
     required: false
     default: ''
+  skip_existing:
+    description: "Pass-through to helm-oci-push-action: skip chart@version pairs already present in the registry (idempotent releases)"
+    required: false
+    default: 'false'
   helm_version:
     description: "helm CLI version installed by azure/setup-helm"
     required: false
@@ -99,19 +111,25 @@ runs:
         ENABLE_GH_PAGES: ${{ inputs.enable_gh_pages }}
         GH_PAGES_URL: ${{ inputs.gh_pages_url }}
       run: |
+        set -euo pipefail
+        echo "::group::Validate inputs"
         case "$MODE" in
           single|multi) ;;
           *) echo "::error::mode must be 'single' or 'multi' (got '$MODE')"; exit 1 ;;
         esac
-        if [[ "$MODE" == "single" && -z "$CHART_PATH" ]]; then
-          echo "::error::mode=single requires 'chart_path'"; exit 1
+        if [[ "$MODE" == "single" ]]; then
+          [[ -n "$CHART_PATH" ]] || { echo "::error::mode=single requires 'chart_path'"; exit 1; }
+          [[ -d "$CHART_PATH" ]] || { echo "::error::chart_path '$CHART_PATH' is not a directory"; exit 1; }
+          [[ -f "$CHART_PATH/Chart.yaml" ]] || { echo "::error::chart_path '$CHART_PATH' does not contain Chart.yaml"; exit 1; }
         fi
-        if [[ "$MODE" == "multi" && -z "$CHARTS_DIR" ]]; then
-          echo "::error::mode=multi requires 'charts_dir'"; exit 1
+        if [[ "$MODE" == "multi" ]]; then
+          [[ -n "$CHARTS_DIR" ]] || { echo "::error::mode=multi requires 'charts_dir'"; exit 1; }
+          [[ -d "$CHARTS_DIR" ]] || { echo "::error::charts_dir '$CHARTS_DIR' is not a directory"; exit 1; }
         fi
         if [[ "$ENABLE_GH_PAGES" == "true" && -z "$GH_PAGES_URL" ]]; then
           echo "::error::enable_gh_pages=true requires 'gh_pages_url'"; exit 1
         fi
+        echo "::endgroup::"
 
     - name: Set up Helm
       uses: azure/setup-helm@v5
@@ -124,38 +142,84 @@ runs:
       env:
         CHART_PATH: ${{ inputs.chart_path }}
       run: |
+        set -euo pipefail
+        echo "::group::Update appVersion"
         TAG="${GITHUB_REF_NAME:-$(git describe --tags --abbrev=0 2>/dev/null || echo '')}"
-        if [ -n "$TAG" ]; then
+        if [[ -n "$TAG" ]]; then
           sed -i "s/^appVersion:.*/appVersion: \"${TAG}\"/" "$CHART_PATH/Chart.yaml"
+          echo "appVersion -> $TAG"
+        else
+          echo "::notice::no tag detected; skipping appVersion update"
         fi
+        echo "::endgroup::"
+
+    - name: Update chart dependencies (single mode)
+      if: inputs.mode == 'single' && inputs.update_dependencies == 'true'
+      shell: bash
+      env:
+        CHART_PATH: ${{ inputs.chart_path }}
+      run: |
+        set -euo pipefail
+        echo "::group::helm dependency update ($CHART_PATH)"
+        helm dependency update "$CHART_PATH"
+        echo "::endgroup::"
+
+    - name: Update chart dependencies (multi mode)
+      if: inputs.mode == 'multi' && inputs.update_dependencies == 'true'
+      shell: bash
+      env:
+        CHARTS_DIR: ${{ inputs.charts_dir }}
+      run: |
+        set -euo pipefail
+        echo "::group::helm dependency update (multi)"
+        for d in "$CHARTS_DIR"/*/; do
+          [[ -d "$d" && -f "$d/Chart.yaml" ]] || continue
+          echo "==> $d"
+          helm dependency update "${d%/}"
+        done
+        echo "::endgroup::"
 
     - name: Package chart (single mode)
       if: inputs.mode == 'single'
       shell: bash
       env:
         CHART_PATH: ${{ inputs.chart_path }}
+        EXTRA_ARGS: ${{ inputs.helm_package_args }}
       run: |
+        set -euo pipefail
+        echo "::group::helm package ($CHART_PATH)"
         mkdir -p helm-repo
-        helm package "$CHART_PATH" -d helm-repo/
+        # shellcheck disable=SC2086
+        helm package "$CHART_PATH" -d helm-repo/ $EXTRA_ARGS
+        echo "::endgroup::"
 
     - name: Package charts (multi mode)
       if: inputs.mode == 'multi'
       shell: bash
       env:
         CHARTS_DIR: ${{ inputs.charts_dir }}
+        EXTRA_ARGS: ${{ inputs.helm_package_args }}
       run: |
+        set -euo pipefail
+        echo "::group::helm package (multi)"
         mkdir -p helm-repo
         for d in "$CHARTS_DIR"/*/; do
           [[ -d "$d" && -f "$d/Chart.yaml" ]] || continue
           echo "==> Packaging ${d%/}"
-          helm package "${d%/}" -d helm-repo/
+          # shellcheck disable=SC2086
+          helm package "${d%/}" -d helm-repo/ $EXTRA_ARGS
         done
+        echo "::endgroup::"
 
     - name: Stage tarballs to /tmp/helm-repo-staging
       shell: bash
       run: |
+        set -euo pipefail
+        echo "::group::Stage tarballs"
         mkdir -p /tmp/helm-repo-staging
         cp helm-repo/*.tgz /tmp/helm-repo-staging/
+        ls /tmp/helm-repo-staging/
+        echo "::endgroup::"
 
     - name: Pre-merge gh-pages index
       if: inputs.enable_gh_pages == 'true'
@@ -164,16 +228,19 @@ runs:
         GH_PAGES_BRANCH: ${{ inputs.gh_pages_branch }}
         GH_PAGES_URL: ${{ inputs.gh_pages_url }}
       run: |
+        set -euo pipefail
+        echo "::group::Merge existing gh-pages index"
         git fetch origin "$GH_PAGES_BRANCH:$GH_PAGES_BRANCH" 2>/dev/null || true
         if git rev-parse --verify "$GH_PAGES_BRANCH" >/dev/null 2>&1; then
           git checkout "$GH_PAGES_BRANCH" -- helm-repo/index.yaml 2>/dev/null || true
         fi
-        if [ -f helm-repo/index.yaml ]; then
+        if [[ -f helm-repo/index.yaml ]]; then
           helm repo index helm-repo/ --url "$GH_PAGES_URL" --merge helm-repo/index.yaml
         else
           helm repo index helm-repo/ --url "$GH_PAGES_URL"
         fi
         cp helm-repo/index.yaml /tmp/helm-repo-staging/
+        echo "::endgroup::"
 
     - name: Deploy to gh-pages
       if: inputs.enable_gh_pages == 'true'
@@ -187,6 +254,8 @@ runs:
         GIT_USER_EMAIL: ${{ inputs.git_user_email }}
         DRY_RUN: ${{ inputs.dry_run }}
       run: |
+        set -euo pipefail
+        echo "::group::Deploy to gh-pages ($GH_PAGES_BRANCH)"
         git config user.name "$GIT_USER_NAME"
         git config user.email "$GIT_USER_EMAIL"
 
@@ -217,6 +286,7 @@ runs:
           git commit -m "$COMMIT_MESSAGE" || echo "No changes to commit"
           git push origin "$GH_PAGES_BRANCH"
         fi
+        echo "::endgroup::"
 
     - name: Push to OCI registry
       if: inputs.enable_oci_push == 'true'
@@ -229,4 +299,5 @@ runs:
         username: ${{ inputs.registry_username }}
         password: ${{ inputs.registry_password }}
         dry_run: ${{ inputs.dry_run }}
+        skip_existing: ${{ inputs.skip_existing }}
         continue_on_error: ${{ inputs.oci_continue_on_error }}
