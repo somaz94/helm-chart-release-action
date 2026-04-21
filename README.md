@@ -231,11 +231,11 @@ And `actions/checkout` with `fetch-depth: 0` + a PAT token (so the action can pu
 ## How It Works
 
 1. **`azure/setup-helm`** installs Helm (`helm_version`, default v3.16.4).
-2. **`update_appversion`** (single mode): rewrites `Chart.yaml` `appVersion` from `GITHUB_REF_NAME`.
-3. **`helm package`** produces `.tgz`(s) in `helm-repo/`.
-4. **Stage**: tarballs are copied to `/tmp/helm-repo-staging/` so they survive the branch switch.
-5. **gh-pages** (`enable_gh_pages=true`): pulls existing `index.yaml`, merges, switches to the `gh-pages` branch, restores staged files, commits, and pushes.
-6. **OCI push** (`enable_oci_push=true`): delegates to `somaz94/helm-oci-push-action@v1` with `tarballs: /tmp/helm-repo-staging/*.tgz`.
+2. **`update_appversion`** (single + flag): rewrites `Chart.yaml` `appVersion` from `GITHUB_REF_NAME`.
+3. **`update_dependencies`** (optional): runs `helm dependency update` on the chart(s).
+4. **`helm package`** produces `.tgz`(s) in `helm-repo/` (extra args via `helm_package_args`).
+5. **OCI push** (`enable_oci_push=true`): delegates to `somaz94/helm-oci-push-action@v1` with `tarballs: helm-repo/*.tgz`. Runs **before** gh-pages because that step rewrites the working tree, and the underlying Docker action can only see `${{ github.workspace }}`.
+6. **gh-pages** (`enable_gh_pages=true`): merges existing `index.yaml`, stashes `helm-repo/` to `/tmp`, switches to the `gh-pages` branch, restores the staged files, commits, and pushes.
 
 <br/>
 

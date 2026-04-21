@@ -211,15 +211,24 @@ runs:
         done
         echo "::endgroup::"
 
-    - name: Stage tarballs to /tmp/helm-repo-staging
-      shell: bash
-      run: |
-        set -euo pipefail
-        echo "::group::Stage tarballs"
-        mkdir -p /tmp/helm-repo-staging
-        cp helm-repo/*.tgz /tmp/helm-repo-staging/
-        ls /tmp/helm-repo-staging/
-        echo "::endgroup::"
+    # Push to OCI happens BEFORE gh-pages, because:
+    # 1) helm-oci-push-action is a Docker action and can only see ${{ github.workspace }}
+    #    (not host /tmp). So tarballs must be inside the workspace (helm-repo/).
+    # 2) The gh-pages step rewrites the working tree (branch switch + clean), so it
+    #    has to run last. OCI failures will not block gh-pages and vice versa.
+    - name: Push to OCI registry
+      if: inputs.enable_oci_push == 'true'
+      id: oci
+      uses: somaz94/helm-oci-push-action@v1
+      with:
+        tarballs: helm-repo/*.tgz
+        registry: ${{ inputs.registry }}
+        registry_login: ${{ inputs.registry_login }}
+        username: ${{ inputs.registry_username }}
+        password: ${{ inputs.registry_password }}
+        dry_run: ${{ inputs.dry_run }}
+        skip_existing: ${{ inputs.skip_existing }}
+        continue_on_error: ${{ inputs.oci_continue_on_error }}
 
     - name: Pre-merge gh-pages index
       if: inputs.enable_gh_pages == 'true'
@@ -239,7 +248,6 @@ runs:
         else
           helm repo index helm-repo/ --url "$GH_PAGES_URL"
         fi
-        cp helm-repo/index.yaml /tmp/helm-repo-staging/
         echo "::endgroup::"
 
     - name: Deploy to gh-pages
@@ -264,6 +272,8 @@ runs:
           git checkout -- "$CHART_PATH/Chart.yaml" 2>/dev/null || true
         fi
 
+        # Stash helm-repo to /tmp so it survives the branch switch.
+        cp -r helm-repo /tmp/helm-repo-staging
         rm -rf helm-repo
 
         if git rev-parse --verify "$GH_PAGES_BRANCH" >/dev/null 2>&1; then
@@ -287,17 +297,3 @@ runs:
           git push origin "$GH_PAGES_BRANCH"
         fi
         echo "::endgroup::"
-
-    - name: Push to OCI registry
-      if: inputs.enable_oci_push == 'true'
-      id: oci
-      uses: somaz94/helm-oci-push-action@v1
-      with:
-        tarballs: /tmp/helm-repo-staging/*.tgz
-        registry: ${{ inputs.registry }}
-        registry_login: ${{ inputs.registry_login }}
-        username: ${{ inputs.registry_username }}
-        password: ${{ inputs.registry_password }}
-        dry_run: ${{ inputs.dry_run }}
-        skip_existing: ${{ inputs.skip_existing }}
-        continue_on_error: ${{ inputs.oci_continue_on_error }}
