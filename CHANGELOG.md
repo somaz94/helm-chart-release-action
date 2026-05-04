@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.0.3](https://github.com/somaz94/helm-chart-release-action/compare/v1.0.2...v1.0.3) (2026-05-04)
+
+### Bug Fixes
+
+- gate appVersion override by GITHUB_REF_TYPE so workflow_dispatch / branch runs no longer publish charts with branch names (e.g. "main") in Chart.yaml
+
+### Contributors
+
+- somaz
+
+<br/>
+
 ## [v1.0.2](https://github.com/somaz94/helm-chart-release-action/compare/v1.0.1...v1.0.2) (2026-04-21)
 
 ### Bug Fixes

@@ -144,7 +144,18 @@ runs:
       run: |
         set -euo pipefail
         echo "::group::Update appVersion"
-        TAG="${GITHUB_REF_NAME:-$(git describe --tags --abbrev=0 2>/dev/null || echo '')}"
+        # Only treat GITHUB_REF_NAME as a release tag when the workflow run
+        # was triggered by a tag push. workflow_dispatch and branch-push runs
+        # leave GITHUB_REF_NAME set to a branch name (e.g. "main"), which
+        # would silently overwrite Chart.yaml's appVersion with a meaningless
+        # value. Fall back to the most recent reachable tag in those cases.
+        TAG=""
+        if [[ "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
+          TAG="${GITHUB_REF_NAME}"
+        fi
+        if [[ -z "$TAG" ]]; then
+          TAG="$(git describe --tags --abbrev=0 2>/dev/null || echo '')"
+        fi
         if [[ -n "$TAG" ]]; then
           sed -i "s/^appVersion:.*/appVersion: \"${TAG}\"/" "$CHART_PATH/Chart.yaml"
           echo "appVersion -> $TAG"
