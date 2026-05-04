@@ -6,7 +6,12 @@ All notable changes to this project will be documented in this file.
 
 ### Bug Fixes
 
-- gate appVersion override by GITHUB_REF_TYPE so workflow_dispatch / branch runs no longer publish charts with branch names (e.g. "main") in Chart.yaml
+- gate appVersion override by GITHUB_REF_TYPE to skip non-tag triggers ([a8b91fc](https://github.com/somaz94/helm-chart-release-action/commit/a8b91fcf6fe2c7d1e0a7ba82c08b1d9b891d5275))
+
+### Chores
+
+- drop unused docker dependabot ecosystem (composite action, no Dockerfile) ([c77df68](https://github.com/somaz94/helm-chart-release-action/commit/c77df685c076ab1ceb7282d18d34c08527f8970f))
+- set CODEOWNERS to @somaz94 ([b66a14d](https://github.com/somaz94/helm-chart-release-action/commit/b66a14dd8a4f8c2acd29b3ea13aa26ed0dd05d9d))
 
 ### Contributors
 
