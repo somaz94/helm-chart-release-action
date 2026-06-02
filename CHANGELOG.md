@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.0.4](https://github.com/somaz94/helm-chart-release-action/compare/v1.0.3...v1.0.4) (2026-06-02)
+
+### Bug Fixes
+
+- harden gh-pages staging dir cleanup and dotfile copy ([c4c3ff6](https://github.com/somaz94/helm-chart-release-action/commit/c4c3ff69f0598192e7157648537d516947d40ed9))
+
+### Continuous Integration
+
+- add concurrency guards to recurring workflows ([fc789aa](https://github.com/somaz94/helm-chart-release-action/commit/fc789aa0206f6b4a7e76f4c61d20576b594c1ba7))
+
+### Contributors
+
+- somaz
+
+<br/>
+
 ## [v1.0.3](https://github.com/somaz94/helm-chart-release-action/compare/v1.0.2...v1.0.3) (2026-05-04)
 
 ### Bug Fixes
