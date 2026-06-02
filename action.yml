@@ -284,6 +284,8 @@ runs:
         fi
 
         # Stash helm-repo to /tmp so it survives the branch switch.
+        # Clear any stale staging dir first (matters on reused self-hosted runners).
+        rm -rf /tmp/helm-repo-staging
         cp -r helm-repo /tmp/helm-repo-staging
         rm -rf helm-repo
 
@@ -296,7 +298,9 @@ runs:
 
         rm -rf helm-repo
         mkdir -p helm-repo
-        cp /tmp/helm-repo-staging/* helm-repo/
+        # Copy staged contents (incl. dotfiles) without relying on glob expansion,
+        # which would abort under set -e if the staging dir were empty.
+        cp -r /tmp/helm-repo-staging/. helm-repo/
 
         find . -maxdepth 1 ! -name '.' ! -name '.git' ! -name 'helm-repo' -exec rm -rf {} +
         git add helm-repo/
