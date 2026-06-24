@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased (2026-06-24)
+
+### Continuous Integration
+
+- add DCO check via shared reusable workflow ([e4c1883](https://github.com/somaz94/helm-chart-release-action/commit/e4c1883a966f0422bfd8ca4092097f7a180f2a00))
+
+### Chores
+
+- **deps:** bump actions/checkout from 6 to 7 (#2) ([#2](https://github.com/somaz94/helm-chart-release-action/pull/2)) ([b64bac4](https://github.com/somaz94/helm-chart-release-action/commit/b64bac4da44ac87f6cdd90d7f506b1744f1769df))
+
+### Contributors
+
+- somaz
+
+<br/>
+
 ## [v1.0.4](https://github.com/somaz94/helm-chart-release-action/compare/v1.0.3...v1.0.4) (2026-06-02)
 
 ### Bug Fixes
