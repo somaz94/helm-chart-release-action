@@ -2,14 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased (2026-06-24)
+## [v1.0.5](https://github.com/somaz94/helm-chart-release-action/compare/v1.0.4...v1.0.5) (2026-10-20)
+
+### Bug Fixes
+
+- keep previously published charts on gh-pages instead of wiping helm-repo ([3958b04](https://github.com/somaz94/helm-chart-release-action/commit/3958b044af847bc7de347cd20ffc44d1f74607a5))
 
 ### Continuous Integration
 
+- adopt the shared git-cliff template to skip changelog commits and duplicate lines ([484b58c](https://github.com/somaz94/helm-chart-release-action/commit/484b58cffcfd1c6e6525af17731f7d3f56c732d0))
+- trim redundant comments in gitlab-mirror workflow ([e5cd6ad](https://github.com/somaz94/helm-chart-release-action/commit/e5cd6adbff23fe88ced1cd07daa704b2e5e5a438))
+- retry mirror pushes on transient remote failures ([3250a73](https://github.com/somaz94/helm-chart-release-action/commit/3250a73b52943523916b65bdb7bb67db23b1e1b4))
+- drop the dead issue-close trigger from changelog generation ([63ed1d9](https://github.com/somaz94/helm-chart-release-action/commit/63ed1d90995bda0c24e721940ecb10dd45f7860e))
+- remove DCO workflow ([f89241d](https://github.com/somaz94/helm-chart-release-action/commit/f89241dd2bb1764313d1de6cd016395b8acf87fe))
+- adopt semantic-pr, labels, lock-threads, PR size, and auto-assign reusables ([b653930](https://github.com/somaz94/helm-chart-release-action/commit/b653930075ad05a3591ea030c0e6ff41f2c9df95))
+- use reusable stale-issues workflow ([83cb05b](https://github.com/somaz94/helm-chart-release-action/commit/83cb05b02d42a1f39eab0795799f832ddc2270de))
+- use reusable issue-greeting workflow ([c54728b](https://github.com/somaz94/helm-chart-release-action/commit/c54728b49acb0798894c52d2df5130629b8795a2))
+- use reusable dependabot-auto-merge workflow ([0b00c90](https://github.com/somaz94/helm-chart-release-action/commit/0b00c90320fdc1cd6e1b06ff12a86e47d11c8022))
+- use reusable contributors workflow ([bbe287f](https://github.com/somaz94/helm-chart-release-action/commit/bbe287f986f7dc1ddd4dd2d6bef836603da9deaa))
+- add ok-to-test workflow stub ([1486404](https://github.com/somaz94/helm-chart-release-action/commit/1486404b6ae15006860da2ac3b36509341ed35eb))
+- add PR welcome workflow stub ([541c883](https://github.com/somaz94/helm-chart-release-action/commit/541c883114b6183c1280d84283940fc10b97acaf))
 - add DCO check via shared reusable workflow ([e4c1883](https://github.com/somaz94/helm-chart-release-action/commit/e4c1883a966f0422bfd8ca4092097f7a180f2a00))
 
 ### Chores
 
+- drop Node.js boilerplate from .gitignore ([6e1f174](https://github.com/somaz94/helm-chart-release-action/commit/6e1f1747005fa74564c73dbedda65eddadcd87ab))
+- trim redundant comments in CODEOWNERS ([e974c3d](https://github.com/somaz94/helm-chart-release-action/commit/e974c3d3fd42c90e27c9455d49dad5c913bfe804))
 - **deps:** bump actions/checkout from 6 to 7 (#2) ([#2](https://github.com/somaz94/helm-chart-release-action/pull/2)) ([b64bac4](https://github.com/somaz94/helm-chart-release-action/commit/b64bac4da44ac87f6cdd90d7f506b1744f1769df))
 
 ### Contributors
