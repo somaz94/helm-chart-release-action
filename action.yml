@@ -296,7 +296,8 @@ runs:
           git rm -rf .
         fi
 
-        rm -rf helm-repo
+        # Keep the charts already on the branch: the merged index still lists them,
+        # so deleting them here turns every older version into a 404.
         mkdir -p helm-repo
         # Copy staged contents (incl. dotfiles) without relying on glob expansion,
         # which would abort under set -e if the staging dir were empty.

@@ -87,15 +87,69 @@ jobs:
           fi
           echo "[PASS] ${{ matrix.mode }} mode"
 
+  test-gh-pages:
+    name: Test gh-pages keeps published charts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Seed a local gh-pages branch with test-chart 0.1.0
+        run: |
+          set -euo pipefail
+          git config user.name ci
+          git config user.email ci@example.com
+          write_chart() {
+            mkdir -p "$1/templates"
+            printf 'apiVersion: v2\nname: test-chart\nversion: %s\nappVersion: "1.0.0"\ndescription: CI fixture chart\ntype: application\n' "$2" > "$1/Chart.yaml"
+            printf 'apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: test-chart\ndata:\n  hello: world\n' > "$1/templates/configmap.yaml"
+          }
+          write_chart /tmp/seed-chart 0.1.0
+          mkdir -p /tmp/seed
+          helm package /tmp/seed-chart -d /tmp/seed
+          helm repo index /tmp/seed --url https://example.com/helm-repo
+          src=$(git rev-parse HEAD)
+          git checkout -q --orphan gh-pages
+          git rm -rfq .
+          mkdir helm-repo && cp /tmp/seed/* helm-repo/
+          git add helm-repo && git commit -qm "seed 0.1.0"
+          git checkout -q "$src"
+          write_chart fixtures/charts/test-chart 0.2.0
+
+      - name: Run action — gh-pages dry run
+        uses: ./
+        with:
+          mode: single
+          chart_path: fixtures/charts/test-chart
+          enable_gh_pages: true
+          gh_pages_url: https://example.com/helm-repo
+          enable_oci_push: false
+          dry_run: true
+          update_appversion: false
+
+      - name: Verify both versions are on gh-pages
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse --abbrev-ref HEAD)" = gh-pages
+          for v in 0.1.0 0.2.0; do
+            test -f "helm-repo/test-chart-$v.tgz" || { echo "::error::test-chart-$v.tgz missing from gh-pages"; exit 1; }
+            grep -q "test-chart-$v.tgz" helm-repo/index.yaml || { echo "::error::index.yaml lacks $v"; exit 1; }
+          done
+          if git diff --cached --name-status | grep '^D'; then
+            echo "::error::the action staged deletions on gh-pages"; exit 1
+          fi
+          echo "[PASS] gh-pages keeps 0.1.0 and adds 0.2.0"
+
   ci-result:
     name: CI Result
     if: always()
-    needs: [test-action]
+    needs: [test-action, test-gh-pages]
     runs-on: ubuntu-latest
     steps:
       - name: Check results
         run: |
-          if [[ "${{ needs.test-action.result }}" != "success" ]]; then
+          if [[ "${{ needs.test-action.result }}" != "success" || "${{ needs.test-gh-pages.result }}" != "success" ]]; then
             echo "::error::CI jobs failed"
             exit 1
           fi

@@ -235,7 +235,7 @@ And `actions/checkout` with `fetch-depth: 0` + a PAT token (so the action can pu
 3. **`update_dependencies`** (optional): runs `helm dependency update` on the chart(s).
 4. **`helm package`** produces `.tgz`(s) in `helm-repo/` (extra args via `helm_package_args`).
 5. **OCI push** (`enable_oci_push=true`): delegates to `somaz94/helm-oci-push-action@v1` with `tarballs: helm-repo/*.tgz`. Runs **before** gh-pages because that step rewrites the working tree, and the underlying Docker action can only see `${{ github.workspace }}`.
-6. **gh-pages** (`enable_gh_pages=true`): merges existing `index.yaml`, stashes `helm-repo/` to `/tmp`, switches to the `gh-pages` branch, restores the staged files, commits, and pushes.
+6. **gh-pages** (`enable_gh_pages=true`): merges existing `index.yaml`, stashes `helm-repo/` to `/tmp`, switches to the `gh-pages` branch, adds the staged files next to the charts already published there (older versions stay downloadable), commits, and pushes.
 
 <br/>
 
