@@ -98,6 +98,9 @@ outputs:
   skipped_charts:
     description: "Comma-separated name:version pairs skipped (dry-run or already exists)"
     value: ${{ steps.oci.outputs.skipped_charts }}
+  failed_charts:
+    description: "Comma-separated name:version pairs whose OCI push failed after retries (only non-empty with oci_continue_on_error, which keeps the step green)"
+    value: ${{ steps.oci.outputs.failed_charts }}
 
 runs:
   using: composite

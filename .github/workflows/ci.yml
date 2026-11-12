@@ -74,11 +74,17 @@ jobs:
         run: |
           PUSHED="${{ steps.single.outputs.pushed_charts }}${{ steps.multi.outputs.pushed_charts }}"
           SKIPPED="${{ steps.single.outputs.skipped_charts }}${{ steps.multi.outputs.skipped_charts }}"
+          FAILED="${{ steps.single.outputs.failed_charts }}${{ steps.multi.outputs.failed_charts }}"
           echo "Mode: ${{ matrix.mode }}"
           echo "pushed_charts: $PUSHED"
           echo "skipped_charts: $SKIPPED"
+          echo "failed_charts: $FAILED"
           if [ -n "$PUSHED" ]; then
             echo "::error::dry_run was true but pushed_charts is non-empty"
+            exit 1
+          fi
+          if [ -n "$FAILED" ]; then
+            echo "::error::dry_run was true but failed_charts is non-empty"
             exit 1
           fi
           if ! echo "$SKIPPED" | grep -q 'test-chart:0.1.0'; then

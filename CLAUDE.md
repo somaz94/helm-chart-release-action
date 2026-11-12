@@ -13,7 +13,7 @@
 
 ## Key Files
 
-- `action.yml` — composite action (17 inputs, 2 outputs). All logic is inline `shell: bash` steps + one `uses: somaz94/helm-oci-push-action@v1` step
+- `action.yml` — composite action. All logic is inline `shell: bash` steps + one `uses: somaz94/helm-oci-push-action@v1` step
 - `cliff.toml` — git-cliff config for release notes
 - `Makefile` — `lint` (dockerized yamllint), `fixtures`, `clean`
 
@@ -39,7 +39,7 @@ act -W .github/workflows/ci.yml workflow_dispatch
 
 ## Workflows
 
-- `ci.yml` — matrix(`single`/`multi`) dry-run verification with `enable_gh_pages: false`, `enable_oci_push: true`, `dry_run: true`, `registry_login: false`. Verifies `pushed_charts` is empty and `skipped_charts` contains the fixture
+- `ci.yml` — matrix(`single`/`multi`) dry-run verification with `enable_gh_pages: false`, `enable_oci_push: true`, `dry_run: true`, `registry_login: false`. Verifies `pushed_charts` and `failed_charts` are empty and `skipped_charts` contains the fixture
 - `release.yml` — git-cliff release notes + `softprops/action-gh-release` + `somaz94/major-tag-action` for `v1` sliding tag
 - `use-action.yml` — post-release smoke tests: real OCI push (single + multi) to `oci://ghcr.io/<owner>/test-helm-chart-release` + dry-run sanity check
 - `gitlab-mirror.yml`, `changelog-generator.yml`, `contributors.yml`, `dependabot-auto-merge.yml`, `issue-greeting.yml`, `stale-issues.yml` — standard repo automation

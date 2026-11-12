@@ -194,7 +194,7 @@ Pass a full OCI URL. If you've already authenticated via a provider-specific act
 | `skip_existing` | Forwarded to helm-oci-push-action: skip chart@version already in registry (idempotent) | No | `false` |
 | `helm_version` | Helm CLI version for `azure/setup-helm` (`latest` or pin like `v3.16.4`) | No | `latest` |
 | `dry_run` | Skip actual commit/push (both gh-pages and OCI) | No | `false` |
-| `oci_continue_on_error` | Forwarded to `helm-oci-push-action` | No | `true` |
+| `oci_continue_on_error` | Forwarded to `helm-oci-push-action`. A push that still fails after its retries leaves the step green; check `failed_charts` | No | `true` |
 
 <br/>
 
@@ -204,6 +204,24 @@ Pass a full OCI URL. If you've already authenticated via a provider-specific act
 |--------|-------------|
 | `pushed_charts` | Comma-separated `name:version` pairs pushed to OCI |
 | `skipped_charts` | Comma-separated `name:version` pairs skipped (dry-run or already exists) |
+| `failed_charts` | Comma-separated `name:version` pairs whose OCI push failed (non-empty only with `oci_continue_on_error`) |
+
+To fail the workflow on an OCI push failure while keeping `oci_continue_on_error` for the other charts:
+
+```yaml
+- id: release
+  uses: somaz94/helm-chart-release-action@v1
+  with:
+    mode: single
+    chart_path: helm/my-chart
+    gh_pages_url: https://owner.github.io/repo/helm-repo
+    registry_password: ${{ secrets.GITHUB_TOKEN }}
+
+- if: steps.release.outputs.failed_charts != ''
+  run: |
+    echo "::error::OCI push failed: ${{ steps.release.outputs.failed_charts }}"
+    exit 1
+```
 
 <br/>
 
