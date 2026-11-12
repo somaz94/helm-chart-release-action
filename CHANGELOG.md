@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.2.0](https://github.com/somaz94/helm-chart-release-action/compare/v1.1.0...v1.2.0) (2026-11-12)
+
+### Features
+
+- fail the step when an OCI push fails, after gh-pages is published ([f023846](https://github.com/somaz94/helm-chart-release-action/commit/f02384634bbcd78b44ad212152b2aca41ea80c77))
+
+### Contributors
+
+- somaz
+
+<br/>
+
 ## [v1.1.0](https://github.com/somaz94/helm-chart-release-action/compare/v1.0.5...v1.1.0) (2026-11-12)
 
 ### Features
