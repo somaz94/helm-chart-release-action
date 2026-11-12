@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.1.0](https://github.com/somaz94/helm-chart-release-action/compare/v1.0.5...v1.1.0) (2026-11-12)
+
+### Features
+
+- add failed_charts output passed through from helm-oci-push-action ([cec86f2](https://github.com/somaz94/helm-chart-release-action/commit/cec86f2b0ff235b5abb97ff0eec96420b5e7029f))
+
+### Contributors
+
+- somaz
+
+<br/>
+
 ## [v1.0.5](https://github.com/somaz94/helm-chart-release-action/compare/v1.0.4...v1.0.5) (2026-10-20)
 
 ### Bug Fixes
