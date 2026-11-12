@@ -90,6 +90,10 @@ inputs:
     description: "Pass-through to helm-oci-push-action: continue if a chart push fails"
     required: false
     default: 'true'
+  fail_on_oci_error:
+    description: "Fail the step at the very end, after gh-pages is published, when any OCI push failed (see failed_charts). Set false to keep a failed OCI push green."
+    required: false
+    default: 'true'
 
 outputs:
   pushed_charts:
@@ -99,7 +103,7 @@ outputs:
     description: "Comma-separated name:version pairs skipped (dry-run or already exists)"
     value: ${{ steps.oci.outputs.skipped_charts }}
   failed_charts:
-    description: "Comma-separated name:version pairs whose OCI push failed after retries (only non-empty with oci_continue_on_error, which keeps the step green)"
+    description: "Comma-separated name:version pairs whose OCI push failed after retries (only non-empty with oci_continue_on_error; the step then fails at the end unless fail_on_oci_error is false)"
     value: ${{ steps.oci.outputs.failed_charts }}
 
 runs:
@@ -316,3 +320,13 @@ runs:
           git push origin "$GH_PAGES_BRANCH"
         fi
         echo "::endgroup::"
+
+    # Last, so a failed OCI push still lets the other charts and gh-pages publish.
+    - name: Fail on OCI push failures
+      if: inputs.enable_oci_push == 'true' && inputs.fail_on_oci_error == 'true' && steps.oci.outputs.failed_charts != ''
+      shell: bash
+      env:
+        FAILED_CHARTS: ${{ steps.oci.outputs.failed_charts }}
+      run: |
+        echo "::error::OCI push failed for: ${FAILED_CHARTS}"
+        exit 1

@@ -39,7 +39,7 @@ act -W .github/workflows/ci.yml workflow_dispatch
 
 ## Workflows
 
-- `ci.yml` — matrix(`single`/`multi`) dry-run verification with `enable_gh_pages: false`, `enable_oci_push: true`, `dry_run: true`, `registry_login: false`. Verifies `pushed_charts` and `failed_charts` are empty and `skipped_charts` contains the fixture
+- `ci.yml` — matrix(`single`/`multi`) dry-run verification with `enable_gh_pages: false`, `enable_oci_push: true`, `dry_run: true`, `registry_login: false`. Verifies `pushed_charts` and `failed_charts` are empty and `skipped_charts` contains the fixture. `test-oci-failure` pushes to an unreachable registry and checks `fail_on_oci_error` fails the step by default and stays green when `false`
 - `release.yml` — git-cliff release notes + `softprops/action-gh-release` + `somaz94/major-tag-action` for `v1` sliding tag
 - `use-action.yml` — post-release smoke tests: real OCI push (single + multi) to `oci://ghcr.io/<owner>/test-helm-chart-release` + dry-run sanity check
 - `gitlab-mirror.yml`, `changelog-generator.yml`, `contributors.yml`, `dependabot-auto-merge.yml`, `issue-greeting.yml`, `stale-issues.yml` — standard repo automation
@@ -60,7 +60,7 @@ Mode-specific: `chart_path` (single), `charts_dir` (multi).
 
 gh-pages toggle: `enable_gh_pages` (default `true`), `gh_pages_url` (required when enabled), `gh_pages_branch`, `commit_message`, `git_user_name`, `git_user_email`.
 
-OCI toggle: `enable_oci_push` (default `true`), `registry`, `registry_login`, `registry_username`, `registry_password`, `oci_continue_on_error`.
+OCI toggle: `enable_oci_push` (default `true`), `registry`, `registry_login`, `registry_username`, `registry_password`, `oci_continue_on_error`, `fail_on_oci_error` (fails the step last, after gh-pages, when `failed_charts` is non-empty).
 
 Other: `update_appversion`, `helm_version`, `dry_run`. See [README.md](README.md) for the full table.
 

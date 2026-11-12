@@ -194,7 +194,8 @@ Pass a full OCI URL. If you've already authenticated via a provider-specific act
 | `skip_existing` | Forwarded to helm-oci-push-action: skip chart@version already in registry (idempotent) | No | `false` |
 | `helm_version` | Helm CLI version for `azure/setup-helm` (`latest` or pin like `v3.16.4`) | No | `latest` |
 | `dry_run` | Skip actual commit/push (both gh-pages and OCI) | No | `false` |
-| `oci_continue_on_error` | Forwarded to `helm-oci-push-action`. A push that still fails after its retries leaves the step green; check `failed_charts` | No | `true` |
+| `oci_continue_on_error` | Forwarded to `helm-oci-push-action`: keep pushing the other charts and publish gh-pages when one push fails | No | `true` |
+| `fail_on_oci_error` | Fail the step at the very end, after gh-pages is published, when any OCI push failed. `false` keeps a failed push green | No | `true` |
 
 <br/>
 
@@ -206,22 +207,7 @@ Pass a full OCI URL. If you've already authenticated via a provider-specific act
 | `skipped_charts` | Comma-separated `name:version` pairs skipped (dry-run or already exists) |
 | `failed_charts` | Comma-separated `name:version` pairs whose OCI push failed (non-empty only with `oci_continue_on_error`) |
 
-To fail the workflow on an OCI push failure while keeping `oci_continue_on_error` for the other charts:
-
-```yaml
-- id: release
-  uses: somaz94/helm-chart-release-action@v1
-  with:
-    mode: single
-    chart_path: helm/my-chart
-    gh_pages_url: https://owner.github.io/repo/helm-repo
-    registry_password: ${{ secrets.GITHUB_TOKEN }}
-
-- if: steps.release.outputs.failed_charts != ''
-  run: |
-    echo "::error::OCI push failed: ${{ steps.release.outputs.failed_charts }}"
-    exit 1
-```
+With the defaults, a chart whose push still fails after its retries does not stop the other charts or gh-pages, and the step then fails with the list of failed charts. Set `fail_on_oci_error: false` to keep the step green and handle `failed_charts` yourself.
 
 <br/>
 
@@ -254,6 +240,7 @@ And `actions/checkout` with `fetch-depth: 0` + a PAT token (so the action can pu
 4. **`helm package`** produces `.tgz`(s) in `helm-repo/` (extra args via `helm_package_args`).
 5. **OCI push** (`enable_oci_push=true`): delegates to `somaz94/helm-oci-push-action@v1` with `tarballs: helm-repo/*.tgz`. Runs **before** gh-pages because that step rewrites the working tree, and the underlying Docker action can only see `${{ github.workspace }}`.
 6. **gh-pages** (`enable_gh_pages=true`): merges existing `index.yaml`, stashes `helm-repo/` to `/tmp`, switches to the `gh-pages` branch, adds the staged files next to the charts already published there (older versions stay downloadable), commits, and pushes.
+7. **OCI failure check** (`fail_on_oci_error=true`): fails the step when `failed_charts` is non-empty, last so nothing else is skipped.
 
 <br/>
 

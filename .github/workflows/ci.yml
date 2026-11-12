@@ -147,15 +147,63 @@ jobs:
           fi
           echo "[PASS] gh-pages keeps 0.1.0 and adds 0.2.0"
 
+  test-oci-failure:
+    name: Test fail_on_oci_error
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Create fixture chart
+        run: |
+          mkdir -p fixtures/charts/test-chart
+          printf 'apiVersion: v2\nname: test-chart\nversion: 0.1.0\ntype: application\n' > fixtures/charts/test-chart/Chart.yaml
+
+      # Nothing listens on port 1, so every push fails after its retries.
+      - name: Run action — unreachable registry, fail_on_oci_error default
+        id: strict
+        continue-on-error: true
+        uses: ./
+        with:
+          mode: single
+          chart_path: fixtures/charts/test-chart
+          enable_gh_pages: false
+          registry: oci://127.0.0.1:1/charts
+          registry_login: false
+          update_appversion: false
+
+      - name: Run action — unreachable registry, fail_on_oci_error false
+        id: lenient
+        uses: ./
+        with:
+          mode: single
+          chart_path: fixtures/charts/test-chart
+          enable_gh_pages: false
+          registry: oci://127.0.0.1:1/charts
+          registry_login: false
+          update_appversion: false
+          fail_on_oci_error: false
+
+      - name: Verify outcomes
+        env:
+          STRICT: ${{ steps.strict.outcome }}
+          LENIENT: ${{ steps.lenient.outcome }}
+          FAILED: ${{ steps.lenient.outputs.failed_charts }}
+        run: |
+          echo "strict=$STRICT lenient=$LENIENT failed_charts=$FAILED"
+          [[ "$STRICT" == "failure" ]] || { echo "::error::expected the default run to fail"; exit 1; }
+          [[ "$LENIENT" == "success" ]] || { echo "::error::expected fail_on_oci_error=false to stay green"; exit 1; }
+          [[ "$FAILED" == *"test-chart:0.1.0"* ]] || { echo "::error::expected test-chart:0.1.0 in failed_charts"; exit 1; }
+          echo "[PASS] fail_on_oci_error"
+
   ci-result:
     name: CI Result
     if: always()
-    needs: [test-action, test-gh-pages]
+    needs: [test-action, test-gh-pages, test-oci-failure]
     runs-on: ubuntu-latest
     steps:
       - name: Check results
         run: |
-          if [[ "${{ needs.test-action.result }}" != "success" || "${{ needs.test-gh-pages.result }}" != "success" ]]; then
+          if [[ "${{ needs.test-action.result }}" != "success" || "${{ needs.test-gh-pages.result }}" != "success" || "${{ needs.test-oci-failure.result }}" != "success" ]]; then
             echo "::error::CI jobs failed"
             exit 1
           fi
